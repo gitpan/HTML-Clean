@@ -1,5 +1,20 @@
 Revision history for Perl module HTML::Clean
 --------------------------------------------
+0.8  Tue Sep  5 08:02:05 PDT 2000
+
+	- Fix dequote regex to be stricter.  Make sure quote/double quote
+	  match, only use alpha as the paramater name. Reported by
+          Renzo Tomà.
+
+	- Removed regexes for removing space within tags and border=0 case. 
+	  This Causes text in attributes to fail, and table borders get
+	  messed up on IE. Reported by Gregory Stark.
+
+	- Fix for improper parsing of emptytags from Jens Quade.
+ 
+	- Fix from Tobias Weber to clean javascript
+
+
 0.7  Sat Apr 24 03:04:45 MET DST 1999
 
 	- Add missing 'hairy.html' file to fix broken test cases.

@@ -14,7 +14,7 @@ require AutoLoader;
 # Items to export to callers namespace
 @EXPORT = qw();
 
-$VERSION = '0.7';
+$VERSION = '0.8';
 
 =head1 NAME
 
@@ -215,7 +215,7 @@ sub _jscomments {
 
   # insure javascript is hidden
   
-  if ($js =~ m,<--,) {
+  if ($js =~ m,<!--,) {
      $js =~ s,</script>,// -->\n</script>,si;
   }
   return($js);
@@ -435,8 +435,9 @@ sub strip {
 
     # Remove excess spaces within tags.. note, we could parse out the elements
     # and rewrite for excess spaces between elements.  perhaps next version.
-    $$h =~ s,\s+>,>,sg;
-    $$h =~ s,<\s+,<,sg;
+    # removed due to problems with > and < in tag elements..
+    #$$h =~ s,\s+>,>,sg;
+    #$$h =~ s,<\s+,<,sg;
     # do this again later..
   }
 
@@ -483,7 +484,7 @@ sub strip {
   }
 
   if ($do_dequote) {
-    while ($$h =~ s,<([A-z]+ [^>]+=)["']([A-z0-9]+)["'](\s*?[^>]*?>),<$1$2$3,sig)
+    while ($$h =~ s,<([A-z]+ [A-z]+=)(['"])([A-z0-9]+)\2(\s*?[^>]*?>),<$1$3$4,sig)
       {
 	# Remove alphanumeric quotes.  Note, breaks DTD..
 	;
@@ -494,11 +495,13 @@ sub strip {
      my $pat = $do_emptytags;
      $pat =~ s/\s+/|/g;
 
-     while ($$h =~ s,<($pat)[^>]*?>\s*</\1>,,siog){}  
+     while ($$h =~ s,<($pat)(\s+[^>]*?)?>\s*</\1>,,siog){}
+
   }
   if ($do_htmldefaults) {
      # Tables
-     $$h =~ s,(<table[^>]*)\s+border=0([^>]*>),$1$2,sig;
+     # seems to break things..
+     #$$h =~ s,(<table[^>]*)\s+border=0([^>]*>),$1$2,sig;
      $$h =~ s,(<td[^>]*)\s+rowspan=1([^>]*>),$1$2,sig;
      $$h =~ s,(<td[^>]*)\s+colspan=1([^>]*>),$1$2,sig;
 
