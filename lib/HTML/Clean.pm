@@ -14,7 +14,7 @@ require AutoLoader;
 # Items to export to callers namespace
 @EXPORT = qw();
 
-$VERSION = '0.5';
+$VERSION = '0.7';
 
 =head1 NAME
 
@@ -189,7 +189,11 @@ sub _commentcheck($) {
   $_ = $comment;
   
   # Server side include
-  return($comment) if (m,^<--\#,si);
+  return($comment) if (m,^<!--\#,si);
+
+  # ITU Hack..  preserve some frontpage components
+  return($comment) if (m,^<!-- %,si);
+  return($comment) if (m,bot="(SaveResults|Search|ConfirmationField)",si);
 
   # Javascript
   return($comment) if (m,//.*-->$,si);
@@ -229,6 +233,7 @@ sub _javascript {
   $js =~ s,([;{}])\n,$1,sig;
 
   # What else is safe to do?
+
   return($js);
 }
 
@@ -338,16 +343,17 @@ The following options are recognized:
 
 =item boolean values (0 or 1 values)
 
-  whitespace  Remove excess whitespace
-  shortertags <strong> -> <b>, etc..
-  blink       No blink tags.
-  contenttype Remove default contenttype.
-  comments    Remove excess comments.
-  entities    &quot; -> ", etc.
-  dequote     remove quotes from tag parameters where possible.
-  defcolor    recode colors in shorter form. (#ffffff -> white, etc.)
-  javascript  remove excess spaces and newlines in javascript code.
-
+  whitespace    Remove excess whitespace
+  shortertags   <strong> -> <b>, etc..
+  blink         No blink tags.
+  contenttype   Remove default contenttype.
+  comments      Remove excess comments.
+  entities      &quot; -> ", etc.
+  dequote       remove quotes from tag parameters where possible.
+  defcolor      recode colors in shorter form. (#ffffff -> white, etc.)
+  javascript    remove excess spaces and newlines in javascript code.
+  htmldefaults  remove default values for some html tags
+  lowercasetags translate all HTML tags to lowercase
 
 =item parameterized values
 
@@ -374,6 +380,9 @@ use vars qw/
           $do_defcolor
           $do_emptytags
           $do_javascript
+          $do_htmldefaults
+          $do_lowercasetags
+          $do_defbaseurl
   /; 
 
 $do_whitespace  = 1;
@@ -387,6 +396,9 @@ $do_dequote     = 1;
 $do_defcolor    = 1;
 $do_emptytags   = 'b i font center';
 $do_javascript  = 1;
+$do_htmldefaults  = 1;
+$do_lowercasetags = 1;
+$do_defbaseurl  = '';
 
 sub strip {
   my($self, $options) = @_;
@@ -420,6 +432,12 @@ sub strip {
     $$h =~ s,\n\s+,\n ,sg;  # other spaces
 
     $$h =~ s,>\n\s*<,><,sg; # LF/spaces between tags..
+
+    # Remove excess spaces within tags.. note, we could parse out the elements
+    # and rewrite for excess spaces between elements.  perhaps next version.
+    $$h =~ s,\s+>,>,sg;
+    $$h =~ s,<\s+,<,sg;
+    # do this again later..
   }
 
   if ($do_entities) {
@@ -453,6 +471,7 @@ sub strip {
     # Remove javascript comments
     $$h =~ s,<script[^>]*(java|ecma)script[^>]*>.*?</script>,_jscomments($&),sige;
   }
+
   if ($do_javascript) {
     #
     $$h =~ s,<script[^>]*(java|ecma)script[^>]*>.*?</script>,_javascript($&),sige;
@@ -477,6 +496,60 @@ sub strip {
 
      while ($$h =~ s,<($pat)[^>]*?>\s*</\1>,,siog){}  
   }
+  if ($do_htmldefaults) {
+     # Tables
+     $$h =~ s,(<table[^>]*)\s+border=0([^>]*>),$1$2,sig;
+     $$h =~ s,(<td[^>]*)\s+rowspan=1([^>]*>),$1$2,sig;
+     $$h =~ s,(<td[^>]*)\s+colspan=1([^>]*>),$1$2,sig;
+
+     #
+
+     # P, TABLE tags are default left aligned..
+     # lynx is inconsistent in this manner though..
+
+     $$h =~ s,<(P|table|td)( [^>]*)align=\"?left\"?([^>]*)>,<$1$2$3>,sig;
+
+     # OL start=1
+     $$h =~ s,(<OL [^>]*)start=\"?1\"?([^>]*>),$1$2,sig;
+
+     # FORM
+     $$h =~ s,(<form [^>]*)method=\"?get\"?([^>]*>),$1$2,sig;
+     $$h =~ s,(<form [^>]*)enctype=\"application/x-www-form-urlencoded\"([^>]*>),$1$2,sig;
+
+     # hr
+     $$h =~ s,(<hr [^>]*)align=\"?center\"?([^>]*>),$1$2,sig;
+     $$h =~ s,(<hr [^>]*)width=\"?100%\"?([^>]*>),$1$2,sig;
+
+     # URLs
+     $$h =~ s,(href|src)(=\"?http://[^/:]+):80/,$1$2/,sig;
+  }
+
+  if ($do_whitespace) {
+    # remove space within tags <center  > becomes <center>
+    $$h =~ s,\s+>,>,sg;
+    $$h =~ s,<\s+,<,sg;
+    # join lines with a space at the beginning/end of the line
+    # and a line that begins with a tag
+    $$h =~ s,>\n ,> ,sig;
+    $$h =~ s, \n<, <,sig;
+  }
+
+  if ($do_lowercasetags) {
+    # translate tags to lowercase to (hopefully) improve compressability..
+
+    # simple tags <H1>, </H1> etc.
+    $$h =~ s,(<[/]?[a-zA-Z][a-zA-Z0-9_-]*\s*>),\L$1\E,sg;
+
+    # the rest..
+    $$h =~ s/(<[a-zA-Z][a-zA-Z0-9_-]*)(\s+.*?>)/_lowercasetag($1,$2)/sge;
+  }
+}
+
+sub _lowercasetag {
+  my($prefix, $body) = @_;
+  $prefix =~ s/^(.+)$/\L$1\E/;
+  $body =~ s/(\s+[a-zA-Z][a-zA-Z0-9_-]*)(\s*=\s*[^"\s]+|\s*=\s*"[^"]*"|>|\s)/\L$1\E$2/sg;
+  return $prefix.$body;
 }
 
 # set options based on the level provided.. INTERNAL
@@ -499,8 +572,10 @@ sub _level_defaults($) {
   $do_comments    = ($level > 3) ? 1 : 0;
   $do_dequote     = ($level > 3) ? 1 : 0;
   $do_defcolor    = ($level > 3) ? 1 : 0;
-  $do_emptytags   = ($level > 4) ? 'b i font center' : 0; 
+  $do_emptytags   = ($level > 3) ? 'b i font center' : 0; 
   $do_javascript  = ($level > 3) ? 1 : 0;
+  $do_htmldefaults = ($level > 3) ? 1 : 0; 
+  $do_lowercasetags = ($level > 3) ? 1 : 0; 
 
   # higher levels reserved for more intensive optimizations.
 }
@@ -514,7 +589,9 @@ Currently checks for the following problems:
 
 =over 8
 
-=item Use of Arial as a font face.
+=item Insuring all IMG tags have ALT elements.
+
+=item Use of Arial, Futura, or Verdana as a font face.
 
 =item Positioning the <TITLE> tag immediately after the <head> tag.
 
@@ -527,7 +604,8 @@ sub compat {
 
   my $h = $self->{'DATA'};
 
-  $$h =~ s/FACE="Arial"/FACE="Arial,Helvetica,SansSerif"/sgi;
+  $$h =~ s/face="arial"/face="arial,helvetica,sansserif"/sgi;
+  $$h =~ s/face="(verdana|futura)"/face="$1,arial,helvetica,sansserif"/sgi;
 
   # insure that <title> tag is directly after the <head> tag
   # Some search engines only search the first N chars. (PLweb for instance..)
@@ -537,7 +615,16 @@ sub compat {
     $$h =~ s,<head>,<head><title>$title</title>,si;
   }
 
+  # Look for IMG without ALT tags.
+  $$h =~ s/(<img[^>]+>)/_imgalt($1)/segi;
 }
+
+sub _imgalt {
+  my($tag) = @_;
+
+  $tag =~ s/>/ alt="">/ if ($tag !~ /alt=/i);
+  return($tag);
+}  
 
 =head2 defrontpage();
 
@@ -548,6 +635,8 @@ currently does the following:
 =over 8
 
 =item Converts Frontpage 'hit counters' into a unix specific format.
+
+=item Removes some frontpage specific html comments
 
 =back
 

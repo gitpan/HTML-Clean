@@ -4,7 +4,7 @@
 
 # Change 1..1 below to 1..last_test_to_print .
 
-BEGIN { $| = 1; print "1..8\n"; }
+BEGIN { $| = 1; print "1..9\n"; }
 END {print "not ok 1\n" unless $loaded;}
 
 use HTML::Clean;
@@ -12,11 +12,12 @@ $loaded = 1;
 $test = 1;
 print "ok 1\n";
 
-foreach $page ('altavista', 'microsoft', 'ibm', 'yahoo', 'infoseek', 'itu', 'cnn') {
+foreach $page ('hairy', 'altavista', 'microsoft', 'ibm', 'yahoo', 'infoseek', 'itu', 'cnn') {
   $test ++;
   my $h = new HTML::Clean("t/testpages/$page.html");
   print "not ok $test\n" if (! defined($h));
-  $h->compat();
+  # compat changes the 'look' of the page for lynx..
+  # $h->compat();
   $h->strip();
   
   if (open(OUTFILE, ">t/testpages/t$page.html")) {
@@ -26,7 +27,7 @@ foreach $page ('altavista', 'microsoft', 'ibm', 'yahoo', 'infoseek', 'itu', 'cnn
     print "not ok $test\n";
   }
   # if we can open lynx test that..
-  if (open(P, "lynx -dump t/testpages/$page.html |")) {
+  if (open(P, "lynx -nolist -dump t/testpages/$page.html |")) {
      my $cvtpage = '';
      my $origpage = '';
 
@@ -35,14 +36,16 @@ foreach $page ('altavista', 'microsoft', 'ibm', 'yahoo', 'infoseek', 'itu', 'cnn
      }
      close(P);
 
-     if (open(P, "lynx -dump t/testpages/t$page.html |")) {
+     if (open(P, "lynx -nolist -dump t/testpages/t$page.html |")) {
        while (<P>) {
           $cvtpage .= $_;
        } 
        close(P);
-       if (abs(length($origpage) - length($cvtpage)) > 10) {
+
+       if (abs(length($origpage) - length($cvtpage)) > 30) {
           print STDERR "\nWarning, lynx detects different page sizes for $page " .
 		length($origpage) . ", " . length($cvtpage) . "\n";
+        
        }
      }
   }
