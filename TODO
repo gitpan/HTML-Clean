@@ -1,0 +1,18 @@
+TODO list for the HTML::Clean Module
+------------------------------------
+
+* May need to be more selective with some of the regexps, so as to not
+  clobber JavaScript.
+
+* Add a real parser/grammar system, like a real compiler, then we
+  can optimize repeated HTML elements, like this:
+
+  <center>sometext</center><center>some more text</center>
+
+* Replace <div align="center"></div> with just <center></center>
+
+* Rename all tags to lowercase, see if it helps when sending data over 
+  a compressed PPP line.
+
+* Add counters so we can collect statistics on the usefullness of 
+  the various optimizations
