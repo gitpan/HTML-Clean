@@ -1,10 +1,22 @@
+use 5.006;
+use strict;
+use warnings;
 use ExtUtils::MakeMaker;
 
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
 WriteMakefile(
-    'NAME'	   => 'HTML::Clean',
-    'VERSION_FROM' => 'lib/HTML/Clean.pm', # finds $VERSION
-    'EXE_FILES'    => [ 'bin/htmlclean' ],    
-    'dist'         => { COMPRESS => 'gzip', SUFFIX => 'gz' },
+    NAME => 'HTML::Clean',
+    AUTHOR =>
+      q{Daniel de Oliveira Mantovani <daniel.oliveira.mantovani@gmail.com>},
+    VERSION_FROM  => 'lib/HTML/Clean.pm',
+    ABSTRACT_FROM => 'lib/HTML/Clean.pm',
+    ( $ExtUtils::MakeMaker::VERSION >= 6.3002
+        ? ( 'LICENSE' => 'perl' )
+        : () ),
+    PL_FILES  => {},
+    PREREQ_PM => {
+        'Test::More'     => 0,
+        'HTML::Entities' => 0,
+    },
+    dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
+    clean => { FILES    => 'HTML-Clean-*' },
 );
